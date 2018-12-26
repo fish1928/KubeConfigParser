@@ -1,0 +1,6 @@
+key: redis-jinyuj-test
+value: 
+  role: jinyuj
+  env: test
+  replicas: 1
+  location: wdc
