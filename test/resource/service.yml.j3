@@ -1,0 +1,124 @@
+{% set use_build_apps = item.value.use_build_apps|default(false) %}
+{% set app = item.value.app|default('abcd') %}
+{% set role = item.value.role|default('staging') %}
+{% set namespace = item.value.namespace | default('default') %}
+{% set proxy_domain = item.value.proxy_domain | default('aaa.bbb.ccc.com') %}
+---
+kind: "ReplicationController"
+apiVersion: "v1"
+metadata:
+  name: "{{app}}-{{role}}"
+  namespace: {{namespace}}
+  labels:
+    app: "{{app}}"
+    role: "{{role}}"
+spec:
+  replicas: {{item.value.replicas | default(1)}}
+  selector:
+    app: "{{app}}"
+    role: "{{role}}"
+  template:
+    metadata:
+      labels:
+        app: "{{app}}"
+        role: "{{role}}"
+    spec:
+      containers:
+        - name: "{{app}}-{{role}}"
+          image: "{{item.value.container | default('abcdefg-docker-local.asdfgjhg.abc.bbb.com/bbb/abcd')}}:{{item.value.version | default('latest')}}"
+          command: ["/bin/bash", "-c"]
+          args:
+            - "test -p /data/logs/abcd.log && java {{item.value.javaOptions | default('')}} -Dlogback.configurationFile={{item.value.logback | default('/abcd/config/logback.xml')}} -jar /abcd/server/target/server-1.0-SNAPSHOT-jar-with-dependencies.jar {{item.value.config | default('/abcd/config/config.json')}} | tee /data/logs/abcd.log"
+          ports:
+            - name: "{{app}}-server"
+              containerPort: {{item.value.port | default(8080)}}
+          volumeMounts:
+{% if use_build_apps %}
+            - mountPath: /build/apps
+              name: build-apps
+{% endif %}
+            - mountPath: /data/logs
+              name: data-logs
+            - mountPath: /data/config
+              name: config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "5000Mi"
+              cpu: "2000m"
+        - name: "{{app}}-{{role}}-li"
+          image: "abcdefg-docker-local.asdfgjhg.abc.bbb.com/bbb/abcd-li-forward:v0.0.5"
+          args:
+            - "-agent"
+            - "{{app}}-{{role}}"
+            - "-pipe"
+            - "/data/logs/abcd.log"
+            - "-server"
+            - "{{item.value.sdfhhfggf | default('aaa-stg-ccc-log001.abc.bbb.com:9000')}}"
+          volumeMounts:
+            - mountPath: /data/logs
+              name: data-logs
+          resources:
+            requests:
+              memory: "16Mi"
+              cpu: "50m"
+            limits:
+              memory: "64Mi"
+              cpu: "250m"
+      volumes:
+{% if use_build_apps %}
+        - name: build-apps
+          nfs:
+            server: build-apps.abc.bbb.com
+            path: "/apps"
+{% endif %}
+        - name: config
+          gitRepo:
+            repository: "git@git.abc.bbb.com:ccc-configs.git"
+            revision: "staging"
+        - name: data-logs
+---
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  name: "{{app}}-{{role}}"
+  namespace: {{namespace}}
+  labels:
+    app: "{{app}}"
+    role: "{{role}}"
+spec:
+  {% if item.value.nodePort is defined -%}
+  type: "NodePort"
+  {% endif -%}
+  ports:
+    - port: {{item.value.port | default(8080)}}
+      {% if item.value.nodePort is defined -%}
+      nodePort: {{item.value.nodePort}}
+      {% endif -%}
+      targetPort: "{{app}}-server"
+  selector:
+    app: "{{app}}"
+    role: "{{role}}"
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{app}}-{{role}}
+  labels:
+    app: {{app}}
+    role: {{role}}
+  namespace: {{namespace}}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: {{app}}-{{role}}.{{proxy_domain}}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: {{app}}-{{role}}
+          servicePort: {{item.value.port | default(8080)}}
+
