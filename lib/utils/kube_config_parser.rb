@@ -86,7 +86,10 @@ module ParserModule
     def top
       condition, str = @seq.delete_at(0)
       is_ruby_value = str.match(/#\{(.*?)\}/)
-      str = @env_parser.instance_eval(is_ruby_value[1]) if is_ruby_value
+      if is_ruby_value
+        value = @env_parser.instance_eval(is_ruby_value[1])
+        str = str.gsub(/#\{(.*?)\}/, value.to_s)
+      end
       @env_parser.instance_eval(condition) ? str : nil
     end
 
