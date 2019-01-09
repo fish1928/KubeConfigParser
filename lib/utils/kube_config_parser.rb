@@ -125,7 +125,7 @@ module ParserModule
           if in_if_else_block
             match_if_else_end = line.match(/\{\% endif -?\%\}/)
             if match_if_else_end
-              ifelse_stack.push(if_else_matched_condition, if_else_matched_lines.join('\n'))
+              ifelse_stack.push(if_else_matched_condition, if_else_matched_lines.join("\n"))
               normal_lines << '#{ifelse_stack.top}'
               in_if_else_block = false
               if_else_matched_condition = nil
